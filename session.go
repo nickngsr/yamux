@@ -356,7 +356,7 @@ func (s *Session) Ping() (time.Duration, error) {
 	}
 
 	// Compute the RTT
-	return time.Now().Sub(start), nil
+	return time.Since(start), nil
 }
 
 // keepalive is a long running goroutine that periodically does
@@ -727,7 +727,17 @@ func (s *Session) closeStream(id uint32) {
 			s.logger.Printf("[ERR] yamux: SYN tracking out of sync")
 		}
 	}
+
+	if s, ok := s.streams[id]; ok {
+		select {
+		case <-s.closeCh:
+		default:
+			close(s.closeCh)
+		}
+	}
+
 	delete(s.streams, id)
+
 	s.streamLock.Unlock()
 }
 

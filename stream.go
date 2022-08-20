@@ -57,6 +57,9 @@ type Stream struct {
 	// closeTimer is set with stateLock held to honor the StreamCloseTimeout
 	// setting on Session.
 	closeTimer *time.Timer
+
+	// closed on stream close
+	closeCh chan struct{}
 }
 
 // newStream is used to construct a new stream within
@@ -75,6 +78,7 @@ func newStream(session *Session, id uint32, state streamState) *Stream {
 		recvNotifyCh: make(chan struct{}, 1),
 		sendNotifyCh: make(chan struct{}, 1),
 		establishCh:  make(chan struct{}, 1),
+		closeCh:      make(chan struct{}),
 	}
 	s.readDeadline.Store(time.Time{})
 	s.writeDeadline.Store(time.Time{})
@@ -89,6 +93,11 @@ func (s *Stream) Session() *Session {
 // StreamID returns the ID of this stream
 func (s *Stream) StreamID() uint32 {
 	return s.id
+}
+
+// CloseChan returns a read-only channel to indicate the stream has closed
+func (s *Stream) CloseChan() <-chan struct{} {
+	return s.closeCh
 }
 
 // Read is used to read from the stream
@@ -230,7 +239,6 @@ WAIT:
 	case <-timeout:
 		return 0, ErrTimeout
 	}
-	return 0, nil
 }
 
 // sendFlags determines any flags that are appropriate
